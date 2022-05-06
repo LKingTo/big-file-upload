@@ -40,12 +40,6 @@
     }
     return fileChunkList
   }
-  // 生成文件hash（通过spark-md5），避免阻塞交互，在worker线程处理
-  function calcHash() {
-    return new Promise(resolve => {
-      resolve('')
-    })
-  }
 </script>
 <script setup>
   import {ref, reactive, computed, watch} from 'vue'
@@ -89,6 +83,7 @@
     console.log('fileChunkList', fileChunkList)
     // 生成文件hash
     container.hash = await calcHash(fileChunkList)
+    console.log('fileHash', container.hash)
   }
   const handleResume = (e) => {
     console.log(e)
@@ -105,6 +100,21 @@
       container.worker.onmessage = null;
     }
     console.log('resetData')
+  }
+
+  // 生成文件hash（通过spark-md5），避免阻塞交互，在worker线程处理
+  function calcHash(fileChunkList) {
+    return new Promise(resolve => {
+      container.worker = new Worker('/workers/hash.worker.js')
+      container.worker.postMessage({fileChunkList})
+      container.worker.onmessage = e => {
+        const {percentage, hash} = e.data
+        hashPercentage.value = percentage
+        if (hash) {
+          resolve(hash)
+        }
+      }
+    })
   }
 
   watch(uploadPercentage, now => {
