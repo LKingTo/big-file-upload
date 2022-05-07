@@ -1,4 +1,4 @@
-self.importScripts('/spark-md5.min.js');
+self.importScripts('/workers/spark-md5.min.js');
 
 self.onmessage = e => {
   const { fileChunkList } = e.data
