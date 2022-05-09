@@ -111,7 +111,7 @@ const handleUpload = async (e) => {
     fileHash: container.hash,
     hash: container.hash + '-' + index,
     chunk: file,
-    size: file.size,   // todo 利用http慢启动，动态调整每个chunk的size
+    size: file.size,
     percentage: uploadedList.includes(container.hash + '-' + index) ? 100 : 0
   }))
   await uploadChunks(uploadedList)
@@ -139,7 +139,6 @@ function resetData () {
 }
 
 // 生成文件hash（通过spark-md5），避免阻塞交互，在worker线程处理
-// todo 缓存文件hash
 function calcHash (fileChunkList) {
   return new Promise(resolve => {
     container.worker = new Worker('/workers/hash.worker.js')

@@ -1,3 +1,4 @@
+const Scan = require('./scan')
 const http = require('http')
 const server = http.createServer()
 const Controller = require('./controller')
@@ -37,4 +38,7 @@ server.on('request', async (req, res) => {
   }
 })
 
-server.listen(PORT, () => console.log(`正在监听 ${PORT} 端口`));
+server.listen(PORT, () => {
+  console.log(`正在监听 ${PORT} 端口`)
+  Scan.start()
+});

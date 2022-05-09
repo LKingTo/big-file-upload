@@ -11,7 +11,7 @@ const extractExt = (filename) => {
 
 const resolveFilePath = (filename, fileHash) => path.resolve(UPLOAD_DIR, `${fileHash}${extractExt(filename)}`)
 
-const resolveChunkDir = fileHash => path.resolve(UPLOAD_DIR, fileHash)
+const resolveChunkDir = fileHash => path.resolve(UPLOAD_DIR, `chunks/${fileHash}`)
 
 const resolvePost = (req) => new Promise((resolve) => {
     let chunk = ''
@@ -31,7 +31,7 @@ const createUploadedList = async (fileHash) => {
 }
 
 const mergeFileChunk = async (filePath, fileHash, size) => {
-  const chunkDir = path.resolve(UPLOAD_DIR, fileHash)
+  const chunkDir = resolveChunkDir(fileHash)
   const chunkFiles = fse.readdirSync(chunkDir)
   // 按切片命名索引排序
   chunkFiles.sort((a, b) => a.split('-'[1]) - b.split('-')[1])
