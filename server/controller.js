@@ -14,17 +14,17 @@ const resolveFilePath = (filename, fileHash) => path.resolve(UPLOAD_DIR, `${file
 const resolveChunkDir = fileHash => path.resolve(UPLOAD_DIR, fileHash)
 
 const resolvePost = (req) => new Promise((resolve) => {
-  let chunk = ''
-  req.on('data', (data) => {
-    chunk += data
+    let chunk = ''
+    req.on('data', (data) => {
+      chunk += data
+    })
+    req.on('end', () => {
+      resolve(JSON.parse(chunk))
+    })
   })
-  req.on('end', () => {
-    resolve(JSON.parse(chunk))
-  })
-})
 
 const createUploadedList = async (fileHash) => {
-  const chunkDir = resolveChunkDir(fileHash);
+  const chunkDir = resolveChunkDir(fileHash)
   return fse.existsSync(chunkDir) ?
     await fse.readdir(chunkDir) :
     []
@@ -32,28 +32,29 @@ const createUploadedList = async (fileHash) => {
 
 const mergeFileChunk = async (filePath, fileHash, size) => {
   const chunkDir = path.resolve(UPLOAD_DIR, fileHash)
-  const chunkPaths = fse.readdirSync(chunkDir)
-  console.log('chunkPaths', chunkPaths)
+  const chunkFiles = fse.readdirSync(chunkDir)
   // 按切片命名索引排序
-  chunkPaths.sort((a, b) => a.split('-'[1]) - b.split('-')[1])
+  chunkFiles.sort((a, b) => a.split('-'[1]) - b.split('-')[1])
+  console.log('chunkFiles', chunkFiles) // Array<chunkHash>
   // 可读流导入可写流方式，合并生成文件
   await Promise.all(
-    chunkPaths.map((chunkPath, index) => {
-      return new Promise(resolve => {
+    chunkFiles.map((chunkFile, index) => {
+      return new Promise((resolve) => {
         const writeStream = fse.createWriteStream(filePath, {
           start: index * size,
           end: (index + 1) * size
         })
-        const readStream = fse.createReadStream(path.resolve(chunkDir, chunkPath))
+        const chunkPath = path.resolve(chunkDir, chunkFile)
+        const readStream = fse.createReadStream(chunkPath)
         readStream.on('end', () => {
-          // fse.unlinkSync(chunkPath)  // 移除切片文件
+           fse.unlinkSync(chunkPath)  // 移除切片文件
           resolve()
         })
         readStream.pipe(writeStream)
       })
     })
   )
-  // fse.rmdirSync(chunkDir)  // 删除切片目录
+   fse.rmdirSync(chunkDir)  // 删除切片目录
 }
 
 class Controller {
@@ -76,12 +77,12 @@ class Controller {
 
   // 合并切片
   async handleMerge (req, res) {
-    const data = resolvePost(req)
-    const {filename, fileHash, size} = data
+    const data = await resolvePost(req)
+    const { filename, fileHash, size } = data
     const filePath = resolveFilePath(filename, fileHash)
     await mergeFileChunk(filePath, fileHash, size)
     res.end(JSON.stringify({
-      message: "file merged success",
+      message: 'file merged success',
       code: 0
     }))
   }
@@ -96,25 +97,25 @@ class Controller {
         res.end('process file chunk failed')
         return
       }
-      const [chunk] = files.chunk;
-      const [hash] = fields.hash; // `${fileHash}-${index}`格式
-      const [fileHash] = fields.fileHash;
-      const [filename] = fields.filename;
+      const [chunk] = files.chunk
+      const [hash] = fields.hash // `${fileHash}-${index}`格式
+      const [fileHash] = fields.fileHash
+      const [filename] = fields.filename
       const filePath = resolveFilePath(filename, fileHash)
       const chunkDir = resolveChunkDir(fileHash)
       if (fse.existsSync(filePath)) {
         // 文件存在直接返回
         res.end('file exist.')
-        return;
+        return
       }
       if (!fse.existsSync(chunkDir)) {
         // 创建切片文件夹
-        await fse.mkdir(chunkDir);
+        await fse.mkdir(chunkDir)
       }
-      console.log("chunk.path:", chunk.path);
       // 切片移动到对应切片文件夹内
-      await fse.move(chunk.path, path.resolve(chunkDir, hash));
-      res.end("received file chunk");
+      await fse.move(chunk.path, path.resolve(chunkDir, hash))
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('received file chunk')
     })
   }
 }
