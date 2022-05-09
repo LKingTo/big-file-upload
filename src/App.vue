@@ -40,10 +40,12 @@ const SIZE = 5 * 1024 * 1024
  */
 function createFileChunk (file, size = SIZE) {
   const fileChunkList = []
+  const totalSize = file.size
   let current = 0
-  while (current < file.size) {
-    fileChunkList.push({ file: file.slice(current, current + size) })
-    current += size
+  while (current < totalSize) {
+    const share = size <= totalSize - current ? size : totalSize - current
+    fileChunkList.push({ file: file.slice(current, current + share)})
+    current += share
   }
   return fileChunkList
 }
@@ -126,6 +128,7 @@ const handlePause = () => {
   if (status.value !== Status.uploading || !container.hash) {
     return
   }
+  console.timeEnd('Calc_Upload')
   status.value = Status.pause
   resetData()
 }
@@ -142,7 +145,7 @@ function resetData () {
 function calcHash (fileChunkList) {
   return new Promise(resolve => {
     container.worker = new Worker('/workers/hash.worker.js')
-    container.worker.postMessage({ fileChunkList })
+    container.worker.postMessage({ fileChunkList, totalSize: container.file.size })
     container.worker.onmessage = e => {
       const { percentage, hash } = e.data
       hashPercentage.value = percentage
@@ -171,8 +174,10 @@ async function uploadChunks (uploadedList = []) {
     })
     promises.push(request)
   })
+  console.time('Calc_Upload')
   // 并发请求限制
   await multiRequest(promises, 3)
+  console.timeEnd('Calc_Upload')
   // 若：之前上传的切片数量 + 本次上传的切片数量 = 所有切片数量，合并切片
   if (uploadedList.length + promises.length === data.value.length) {
     await mergeChunk(container.file.name, container.hash, SIZE)
