@@ -10,7 +10,7 @@ self.onmessage = e => {
     reader.readAsArrayBuffer(fileChunkList[index].file)
     reader.onload = e => {
       count++
-      console.log('fileArrayBuffer', e.target.result)
+      //console.log('fileArrayBuffer', e.target.result)
       // 计算每份切片的hash
       spark.append(e.target.result)
       if (count === fileChunkList.length) {
