@@ -30,7 +30,7 @@
   </div>
 </template>
 <script>
-const SIZE = 10 * 1024 * 1024
+const SIZE = 5 * 1024 * 1024
 
 /**
  * 生成文件切片
@@ -52,6 +52,7 @@ function createFileChunk (file, size = SIZE) {
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { verifyUpload, uploadFile, mergeChunk } from './rest'
+import { multiRequest } from './utils'
 
 let REQUEST_LIST = []
 const Status = reactive({
@@ -164,14 +165,15 @@ async function uploadChunks (uploadedList = []) {
     formData.append('hash', hash)
     formData.append('filename', container.file.name)
     formData.append('fileHash', container.hash)
-    // todo 并发请求限流
-    promises.push(uploadFile({
+    const request = uploadFile.bind(null, {
       formData,
       onProgress: createProgressHandler(data.value[index]),
       requestList: REQUEST_LIST
-    }))
+    })
+    promises.push(request)
   })
-  await Promise.allSettled(promises)
+  // 并发请求限制
+  await multiRequest(promises, 3)
   // 若：之前上传的切片数量 + 本次上传的切片数量 = 所有切片数量，合并切片
   if (uploadedList.length + promises.length === data.value.length) {
     await mergeChunk(container.file.name, container.hash, SIZE)
